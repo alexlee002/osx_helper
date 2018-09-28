@@ -1,0 +1,148 @@
+{
+	"files": [
+	    "~/.zsh_history",
+	    "~/.zshrc", 
+
+	    "~/.bash_profile",
+
+	    "~/.vim",
+	    "~/.viminfo",
+	    "~/.vimrc",
+
+	    "~/.ssh",
+	    "~/.sqliterc"
+	    // "~/.cocoapods"
+	],
+
+	"apps": {
+		"StarUML": { 
+	        "paths": "~/Library/Application Support/StarUML", 
+	        "brew": {"cask_id": "staruml"}
+	    },
+
+	    "Sublime Text": {
+	        "paths": "~/Library/Application Support/Sublime Text 3",
+	        "brew": {"cask_id": "sublime-text"}
+	    },
+
+	    "bear": { 
+	    	"paths": "~/Library/Containers/net.shinyfrog.bear",
+	    	"brew": {"enable": false}
+	    },
+
+	    "SourceTree": { 
+	    	"paths": "~/Library/Application Support/SourceTree",
+	    	"brew": {"cask_id": "sourcetree"}
+	    },
+
+	    "QQ": {
+	    	"brew": {"cask_id": "qq"}
+	    },
+
+	    "wechat": {
+	    	"brew": {"cask_id": "wechat"}
+	    },
+
+	    "百度Hi": {
+	    	"brew": {"cask_id": "baiduhi"}
+	    },
+
+	    // "BaiduInput": {
+	    // 	"brew": {"cask_id": "baiduinput"},
+	    // 	"locate": "/Library/Input Methods/BaiduIM.app"
+	    // },
+
+	    "The Unarchiver": {
+	    	"brew": {"cask_id": "the-unarchiver"}
+	    },
+
+	    "Google Chrome": {
+	    	"brew": {"cask_id": "google-chrome"}
+	    },
+
+	    "Xcode": {
+	    	"paths": [
+	    		"~/Library/Developer/Xcode/Archives",
+	    		"~/Library/Developer/Xcode/Templates",
+	    		"~/Library/Developer/Xcode/UserData"
+	    	],
+	    	"brew": {"enable": false}
+	    },
+
+	    "Dictionary": {
+	    	"paths": "~/Library/Dictionaries",
+	    	"dft_domains": [
+	    		"com.apple.Dictionary",
+	    		"com.apple.DictionaryServices"
+	    	],
+	    	"brew": {"enable": false}
+	    },
+
+	    "Terminal": {
+	    	"dft_domains": "com.apple.Terminal",
+	    	"brew": {"enable": false}
+	    }
+	},
+
+	"osx_config": [
+		{
+			// enable tap to click
+			"host": "-currentHost",
+			"domain": "NSGlobalDomain",
+			"values":"com.apple.mouse.tapBehavior -int 1"
+		},
+		{
+			// enable tap to click
+			"domain":"com.apple.AppleMultitouchTrackpad",
+			"values": "Clicking -int 1"
+		},
+		{
+			// show battery percentage.
+			"domain": "com.apple.menuextra.battery",
+			"values": "ShowPercent -string \"YES\""
+		}, 
+		{
+			// show extensions in finder
+			"domain": "NSGlobalDomain",
+			"values": "AppleShowAllExtensions -bool true"
+		},
+		{
+			"domain": "com.apple.finder",
+			"values": [
+				"ShowStatusBar -bool true",
+				"ShowPathbar -bool true",
+				"_FXSortFoldersFirst -bool true",
+				// search current path
+				"FXDefaultSearchScope -string \"SCcf\"",
+				// Disable the warning when changing a file extension
+				"FXEnableExtensionChangeWarning -bool false",
+				// allow text selection in Quick Look
+				"QLEnableTextSelection -bool true"
+			]
+		}
+	],
+
+	"brews": [
+		{
+			"cask_id":[
+				"qlcolorcode", 
+				"qlstephen", 
+				"qlmarkdown", 
+				"quicklook-json", 
+				"qlimagesize", 
+				"webpquicklook", 
+				"suspicious-package", 
+				"quicklookase", 
+				"qlvideo"]
+		}
+		//{
+			// "tap": "caskroom/fonts",
+			// "cask_id": [
+			// 	"font-roboto-mono", 
+			// 	"font-source-code-pro",
+			// 	"font-robotomono-nerd-font"
+			// ]
+		//}
+	]
+		
+}

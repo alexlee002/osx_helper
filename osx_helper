@@ -1,0 +1,394 @@
+#!/usr/bin/python
+
+# Alex Lee (https://github.com/alexlee002/osx_helper)
+# License: Apache License: https://github.com/alexlee002/osx_helper/blob/master/LICENSE
+
+from __future__ import print_function
+import os.path
+import sys
+
+
+#######################################################
+# Utils
+#######################################################
+if sys.version_info[:2] < (3, 3):
+    old_print = print
+    def print(*args, **kwargs):
+        flush = kwargs.pop('flush', False)
+        old_print(*args, **kwargs)
+        if flush:
+            file = kwargs.get('file', sys.stdout)
+            file.flush() if file is not None else sys.stdout.flush()
+
+def to_unicode(val):
+    """ safely convert an object to unicode """
+    return val if isinstance(val, unicode) else str(val).decode('utf-8')
+
+
+def green_msg(msg):
+    return ('\033[32m{0}\033[0m'.format(msg))
+
+
+def yellow_msg(msg):
+    return ('\033[33m{0}\033[0m'.format(msg))
+
+
+def red_msg(msg):
+    return ('\033[1;31m{0}\033[0m'.format(msg))
+
+
+def copy(src, dest, force=True):
+    import shutil, errno, datetime
+
+    if os.path.isdir(dest):
+        if force:
+            shutil.rmtree(dest)
+        else:
+            subfix = u'-{t}'.format(t=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+            os.rename(dest, dest+subfix)
+    elif os.path.exists(dest):
+        if force:
+            os.remove(dest)
+        else:
+            subfix = u'-{t}'.format(t=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+            name, ext = os.path.splitext(dest)
+            os.rename(dest, u'{n}{s}{e}'.format(n=name, s=subfix, e=ext))
+
+    mkdirs(os.path.dirname(dest))
+
+    if os.path.isdir(src):
+        # shutil.copytree(src, dest, symlinks=True, \
+        #     ignore=lambda p,items:[x for x in items if os.path.islink(os.path.join(p, x))])
+        shutil.copytree(src, dest, symlinks=True)
+    elif os.path.isfile(src):
+        shutil.copy(src, dest)
+
+
+def mkdirs(path):
+    import errno
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+def exec_shell(cmd):
+    import subprocess, sys
+    return subprocess.call(cmd, shell=True)
+
+#####################################################################
+
+def load_config(file):
+    import json
+
+    configs = None
+    with open(file, u'rb') as fp:
+        json_str = ''
+        for line in fp:
+            if not to_unicode(line).strip().startswith(u'//'):
+                json_str += line
+        try:
+            return json.loads(json_str)
+        except ValueError as e:
+            print(red_msg(u'Invalid config file!'));
+            raise
+
+
+def process_file_path(path, restore=False):
+    if restore:
+        if path.startswith(u'$HOME'):
+            path = path.replace(u'$HOME', '~', 1)
+        elif path.startswith(u'$ROOT'):
+            path = path.replace(u'$ROOT/', '/', 1)
+    else:
+        if path.startswith(u'~'):
+            path = path.replace(u'~', u'$HOME', 1)
+        else:
+            path = os.path.abspath(path)
+            if path.startswith(u'/'):
+                path.replace(u'/', u'$ROOT/', 1)
+    return path
+
+
+def backup_files(files, dest_dir):
+    if isinstance(files, str) or isinstance(files, unicode):
+        files = [files]
+
+    for p in files:
+        srcpath = os.path.abspath(os.path.expanduser(p))
+        destpath = os.path.join(dest_dir, process_file_path(p))
+
+        if os.path.exists(srcpath):
+            print(u'backing up {0} ... '.format(p), end=u'', flush=True)
+            try:
+                copy(srcpath, destpath)
+                print(green_msg(u'OK'))
+            except OSError as e:
+                print(red_msg(u'Failed'))
+                raise
+
+
+def restore_files(files, bakup_dir):
+    if isinstance(files, str) or isinstance(files, unicode):
+        files = [files]
+
+    for p in files:
+        bakup_f = os.path.join(bakup_dir, process_file_path(p))
+        if os.path.exists(bakup_f):
+            print(u'restoring {0} from {1} ... '.format(p, bakup_f), end=u'', flush=True)
+            try:
+                copy(bakup_f, os.path.expanduser(p), force=False)
+                print(green_msg(u'OK'))
+            except OSError as e:
+                print(red_msg(u'Failed'))
+                raise
+
+
+def backup_defaults(domains, dest_dir):
+    if isinstance(domains, str) or isinstance(domains, unicode):
+        domains = [domains]
+
+    mkdirs(dest_dir)
+    for domain in domains:  
+        dest_plist = os.path.join(dest_dir, u'{0}.plist'.format(domain))
+        if exec_shell(u'defaults export {0} {1}'.format(domain, dest_plist)) == 0:
+            print(u'export {0} {1}'.format(domain, green_msg(u'OK')))
+        else:
+            print(u'export {0} {1}'.format(domain, red_msg(u'Failed')))
+
+
+def restore_defaults(domains, bakup_dir):
+    if isinstance(domains, str) or isinstance(domains, unicode):
+        domains = [domains]
+
+    for domain in domains:
+        bak_plist = os.path.join(bakup_dir, u'{0}.plist'.format(domain))
+        if exec_shell(u'defaults import {0} {1}'.format(domain, bak_plist)) == 0:
+            print(u'import {0} {1}'.format(domain, green_msg(u'OK')))
+        else:
+            print(u'import {0} {1}'.format(domain, red_msg(u'Failed')))
+
+
+def backup_apps(confgs_dic, dest_dir):
+    for app_name, app_config in confgs_dic.items():
+        dest_path = os.path.join(dest_dir, app_name)
+        if u'paths' in app_config:
+            backup_files(app_config[u'paths'], dest_path)
+        if u'dft_domains' in app_config:
+            backup_defaults(app_config[u'dft_domains'], dest_path)
+
+
+def restore_apps(confgs_dic, bakup_dir, brew_installed=True):
+    for app_name, app_config in confgs_dic.items():
+        bak_path = os.path.join(bakup_dir, app_name)
+        if u'paths' in app_config:
+            restore_files(app_config[u'paths'], bak_path)
+        if u'dft_domains' in app_config:
+            restore_defaults(app_config[u'dft_domains'], bak_path)
+        if brew_installed and u'brew' in app_config:
+            brew_cfg = app_config[u'brew']
+            if u'enable' in brew_cfg and not brew_cfg[u'enable']:
+                pass
+            elif u'cask_id' in brew_cfg:
+                locate = os.path.expanduser(app_config[u'locate']) \
+                    if u'locate' in app_config else u'/Applications/{0}.app'.format(app_name)
+
+                if not os.path.exists(locate):
+                    if exec_shell(u'brew cask install {0}'.format(brew_cfg[u'cask_id'])) == 0:
+                        print(u'install {0} {1}'.format(app_name, green_msg(u'OK')))
+                    else:
+                        print(u'install {0} {1}'.format(app_name, red_msg(u'Failed')))
+
+
+def sys_optimize(configs):
+    for cfg in configs:
+        values = cfg[u'values']
+        if isinstance(values, str) or isinstance(values, unicode):
+            values = [values]
+        for val in values:
+            exec_shell(u'defaults {h} write {d} {v}'.format(\
+                h=(cfg[u'host'] if u'host' in cfg else u''), d=cfg[u'domain'], v=val))
+
+    exec_shell(u'killall Finder')
+
+
+def install_homebrew():
+    if exec_shell(u'brew --version') != 0:
+        print(u'=== Installing homebrew ...')
+        cmd = u'/usr/bin/ruby -e\
+         "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"'
+        if exec_shell(cmd) == 0:
+            print(green_msg(u'Install homebrew OK'))
+        else:
+            print(red_msg(u'Install homebrew Failed'))
+            return False
+    return True
+
+
+def config_zsh(init=False):
+    """
+    configure zsh:
+        install oh-my-zsh
+    oh-my-zsh theme: powerlevel9k
+    oh-my-zsh plugins: 
+
+    Args:
+        init:   True if newly install, False if restore from backup files
+    """
+    cmd = u'sh -c "$(curl -fsSL '
+    cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh '
+    cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
+    print(u'=== Configuring zsh ...')
+    if exec_shell(cmd) != 0:
+        print(red_msg(u'install oh-my-zsh Failed'))
+        return
+    print(green_msg(u'install oh-my-zsh OK'))
+
+    # clone powerlevel9k theme
+    cmd = u'git clone https://github.com/bhilburn/powerlevel9k.git '
+    cmd += u'~/.oh-my-zsh/custom/themes/powerlevel9k; '
+    # clone plugin: zsh-syntax-highlighting
+    cmd += u'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '
+    cmd += u'~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting;'
+    # clone plugin: zsh-autosuggestions
+    cmd += u'git clone git://github.com/zsh-users/zsh-autosuggestions '
+    cmd += u'~/.oh-my-zsh/custom/plugins/zsh-autosuggestions;'
+
+    if init:
+        tmp = u'~/.zshrc-1001-tmp'
+
+        cmd += u'sed -e $\'s/^export ZSH=/export ZSH=$HOME\\\/.oh-my-zsh\\\n'
+        cmd += u'source $HOME\\\/.bash_profile\\\nexport TERM="xterm-256color"\\\n'
+        cmd += u'#export ZSH=/\' ~/.zshrc > {tmp} && mv -f {tmp} ~/.zshrc; '.format(tmp=tmp)
+
+        # config powerlevel9k theme
+        cmd += u'sed -e $\'s/^ZSH_THEME=/POWERLEVEL9K_MODE="nerdfont-complete"\\\n'
+        cmd += u'ZSH_THEME=powerlevel9k\\\/powerlevel9k\\\n'
+        cmd += u'POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir dir_writable vcs)\\\n'
+        cmd += u'POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status)\\\n'
+        cmd += u'DEFAULT_USER="{u}"\\\n'.format(u=os.getlogin())
+        cmd += u'POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$\\\'\\\\\\uE0B1\\\'" %F"\\\n'
+        cmd += u'#ZSH_THEME=/\' ~/.zshrc > {tmp} && mv -f {tmp} ~/.zshrc; '.format(tmp=tmp)
+
+        # config plugins
+        cmd += u'sed -e $\'s/^plugins=(/plugins=(\\\n  zsh-syntax-highlighting\\\n  '
+        cmd += u'zsh-autosuggestions\\\n  OSX\\\n  Z\\\n  sublime/\' ~/.zshrc'
+        cmd += u' > {tmp} && mv -f {tmp} ~/.zshrc && source ~/.zshrc;'.format(tmp=tmp)
+
+    cmd += u'env zsh -l'
+    if exec_shell(cmd) != 0:
+        print(red_msg(u'config zsh Failed'))
+    else:
+        print(green_msg(u'config zsh OK'))
+
+
+def install_brews(brews):
+    for cfg in brews:
+        if u'tap' in cfg:
+            if exec_shell(u'brew tap {0}'.format(cfg[u'tap'])) != 0:
+                continue
+        if u'cask_id' in cfg:
+            cask_list = cfg[u'cask_id']
+            if isinstance(cask_list, str) or isinstance(cask_list, unicode):
+                cask_list = [cask_list]
+            exec_shell(u'brew cask install {0}'.format(u' '.join(cask_list)))
+        if u'brew_id' in cfg:
+            brew_list = cfg[u'brew_id']
+            if isinstance(brew_list, str) or isinstance(brew_list, unicode):
+                brew_list = [brew_list]
+            exec_shell(u'brew install {0}'.format(u' '.join(brew_list)))
+
+
+def backup(dest_dir):
+    cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+    configs = load_config(cfgfile)
+
+    if u'files' in configs:
+        backup_files(configs[u'files'], os.path.join(dest_dir, u'files'))
+
+    if u'apps' in configs:
+        backup_apps(configs[u'apps'], os.path.join(dest_dir, u'apps'))
+
+
+def restore(bakup_dir):
+    brew_installed = install_homebrew()
+
+    cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+    configs = load_config(cfgfile)
+
+    if u'osx_config' in configs:
+        sys_optimize(configs[u'osx_config'])
+
+    if u'files' in configs:
+        restore_files(configs[u'files'], os.path.join(bakup_dir, u'files'))
+
+    if u'apps' in configs:
+        restore_apps(configs[u'apps'], os.path.join(bakup_dir, u'apps'), \
+            brew_installed=brew_installed)
+
+    if u'brews' in configs and brew_installed:
+        install_brews(configs[u'brews'])
+
+    config_zsh()
+
+
+def init_os():
+    brew_installed = install_homebrew()
+
+    cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+    configs = load_config(cfgfile)
+
+    if u'osx_config' in configs:
+        sys_optimize(configs[u'osx_config'])
+
+    config_zsh(init=True)
+
+###################################################
+def usage():
+
+    usage = """
+    backup path     backup profiles, files, apps and defaults to path
+    restore path    restore profiles, files, apps and defaults from path
+    init            init a new os
+
+    the action of backup/restore is configured via osx_helper.json
+    """
+    
+    print(u'{0} backup/restore path'.format(sys.argv[0]))
+    print(usage)
+
+
+def main():
+    def __checkArgs(cnt):
+        if len(sys.argv) < cnt:
+            usage()
+            sys.exit(-1)
+
+    __checkArgs(2)
+    action = sys.argv[1]
+    if action == u'backup':
+        __checkArgs(3)
+        path = os.path.expanduser(sys.argv[2])
+        mkdirs(path)
+        backup(path)
+        print(green_msg(u'=== backup DONE! ==='))
+    elif action == u'restore':
+        __checkArgs(3)
+        path = os.path.expanduser(sys.argv[2])
+        if os.path.isdir(path):
+            restore(path)
+            print(green_msg(u'=== restore DONE! ==='))
+        else:
+            print(red_msg(u'{0} not a backup dir.'.format(path)))
+            sys.exit(-1)
+    elif action == u'init':
+        init_os()
+        print(green_msg(u'=== init DONE! ==='))
+    else:
+        usage()
+        sys.exit(-1)
+
+
+if __name__ == '__main__':
+    main()
+
