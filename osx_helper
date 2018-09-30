@@ -40,6 +40,8 @@ def red_msg(msg):
 def copy(src, dest, force=True):
     import shutil, errno, datetime
 
+    assert src != dest
+
     if os.path.isdir(dest):
         if force:
             shutil.rmtree(dest)
@@ -106,14 +108,18 @@ def process_file_path(path, restore=False):
         else:
             path = os.path.abspath(path)
             if path.startswith(u'/'):
-                path.replace(u'/', u'$ROOT/', 1)
+                path = path.replace(u'/', u'$ROOT/', 1)
     return path
 
-
+####################################################################
 def backup_files(files, dest_dir):
-    if isinstance(files, str) or isinstance(files, unicode):
-        files = [files]
+    """
+    backup specified files to dest_dir.
 
+    Args:
+        files:      list of file paths
+        dest_dir:   the root path to store backup-files
+    """
     for p in files:
         srcpath = os.path.abspath(os.path.expanduser(p))
         destpath = os.path.join(dest_dir, process_file_path(p))
@@ -129,9 +135,13 @@ def backup_files(files, dest_dir):
 
 
 def restore_files(files, bakup_dir):
-    if isinstance(files, str) or isinstance(files, unicode):
-        files = [files]
+    """
+    restore files from backup_dir.
 
+    Args:
+        files:      list, the files to restore
+        backup_dir: str, the root backup dir
+    """
     for p in files:
         bakup_f = os.path.join(bakup_dir, process_file_path(p))
         if os.path.exists(bakup_f):
@@ -143,73 +153,52 @@ def restore_files(files, bakup_dir):
                 print(red_msg(u'Failed'))
                 raise
 
-
+#########################################################################
 def backup_defaults(domains, dest_dir):
-    if isinstance(domains, str) or isinstance(domains, unicode):
-        domains = [domains]
+    if len(domains) > 0:
+        mkdirs(dest_dir)
 
-    mkdirs(dest_dir)
-    for domain in domains:  
-        dest_plist = os.path.join(dest_dir, u'{0}.plist'.format(domain))
-        if exec_shell(u'defaults export {0} {1}'.format(domain, dest_plist)) == 0:
-            print(u'export {0} {1}'.format(domain, green_msg(u'OK')))
+    for name in domains:
+        plist_file = os.path.join(dest_dir, u'{0}.plist'.format(name))
+        if exec_shell(u'defaults export {0} {1}'.format(name, plist_file)) == 0:
+            print(u'export {0} {1}'.format(name, green_msg(u'OK')))
         else:
-            print(u'export {0} {1}'.format(domain, red_msg(u'Failed')))
+            print(u'export {0} {1}'.format(name, red_msg(u'Failed')))
 
 
 def restore_defaults(domains, bakup_dir):
-    if isinstance(domains, str) or isinstance(domains, unicode):
-        domains = [domains]
+    # backup the existed plist before restore from backup
+    safe_bakup_dir = os.path.expanduser(u'~/Desktop/orig-defaults-pre_restore')
+    mkdirs(safe_bakup_dir)
+    for name in domains:
+        orig_plist = os.path.join(safe_bakup_dir, u'{0}.plist'.format(name))
+        exec_shell(u'defaults export {0} {1}'.format(name, orig_plist))
 
-    for domain in domains:
-        bak_plist = os.path.join(bakup_dir, u'{0}.plist'.format(domain))
-        if exec_shell(u'defaults import {0} {1}'.format(domain, bak_plist)) == 0:
-            print(u'import {0} {1}'.format(domain, green_msg(u'OK')))
+        bak_plist = os.path.join(bakup_dir, u'{0}.plist'.format(name))
+        if exec_shell(u'defaults import {0} {1}'.format(name, bak_plist)) == 0:
+            print(u'import {0} {1}'.format(name, green_msg(u'OK')))
         else:
-            print(u'import {0} {1}'.format(domain, red_msg(u'Failed')))
+            print(u'import {0} {1}'.format(name, red_msg(u'Failed')))
 
 
-def backup_apps(confgs_dic, dest_dir):
-    for app_name, app_config in confgs_dic.items():
-        dest_path = os.path.join(dest_dir, app_name)
-        if u'paths' in app_config:
-            backup_files(app_config[u'paths'], dest_path)
-        if u'dft_domains' in app_config:
-            backup_defaults(app_config[u'dft_domains'], dest_path)
-
-
-def restore_apps(confgs_dic, bakup_dir, brew_installed=True):
-    for app_name, app_config in confgs_dic.items():
-        bak_path = os.path.join(bakup_dir, app_name)
-        if u'paths' in app_config:
-            restore_files(app_config[u'paths'], bak_path)
-        if u'dft_domains' in app_config:
-            restore_defaults(app_config[u'dft_domains'], bak_path)
-        if brew_installed and u'brew' in app_config:
-            brew_cfg = app_config[u'brew']
-            if u'enable' in brew_cfg and not brew_cfg[u'enable']:
-                pass
-            elif u'cask_id' in brew_cfg:
-                locate = os.path.expanduser(app_config[u'locate']) \
-                    if u'locate' in app_config else u'/Applications/{0}.app'.format(app_name)
-
-                if not os.path.exists(locate):
-                    if exec_shell(u'brew cask install {0}'.format(brew_cfg[u'cask_id'])) == 0:
-                        print(u'install {0} {1}'.format(app_name, green_msg(u'OK')))
-                    else:
-                        print(u'install {0} {1}'.format(app_name, red_msg(u'Failed')))
+#########################################################################
+def install_brews(brews):
+    """ install apps via homebrew or cask """
+    for cfg in brews:
+        if u'tap' in cfg:
+            if exec_shell(u'brew tap {0}'.format(cfg[u'tap'])) != 0:
+                continue
+        if u'cask_ids' in cfg:
+            cask_list = cfg[u'cask_ids']
+            exec_shell(u'brew cask install {0}'.format(u' '.join(cask_list)))
+        if u'brew_ids' in cfg:
+            brew_list = cfg[u'brew_ids']
+            exec_shell(u'brew install {0}'.format(u' '.join(brew_list)))
 
 
 def sys_optimize(configs):
-    for cfg in configs:
-        values = cfg[u'values']
-        if isinstance(values, str) or isinstance(values, unicode):
-            values = [values]
-        for val in values:
-            exec_shell(u'defaults {h} write {d} {v}'.format(\
-                h=(cfg[u'host'] if u'host' in cfg else u''), d=cfg[u'domain'], v=val))
-
-    exec_shell(u'killall Finder')
+    cmd = u'; '.join(configs)
+    exec_shell(cmd)
 
 
 def install_homebrew():
@@ -255,50 +244,59 @@ def config_zsh(init=False):
     cmd += u'~/.oh-my-zsh/custom/plugins/zsh-autosuggestions;'
 
     if init:
-        tmp = u'~/.zshrc-1001-tmp'
+        cmd = u'cat ~/.zshrc'
+        quote_newline = u'\\\\\\n'
 
-        cmd += u'sed -e $\'s/^export ZSH=/export ZSH=$HOME\\\/.oh-my-zsh\\\n'
-        cmd += u'source $HOME\\\/.bash_profile\\\nexport TERM="xterm-256color"\\\n'
-        cmd += u'#export ZSH=/\' ~/.zshrc > {tmp} && mv -f {tmp} ~/.zshrc; '.format(tmp=tmp)
+        search = u'^export ZSH='
+        settings = (
+            u'export ZSH=$HOME/.oh-my-zsh',
+            u'source $HOME/.bash_profile' \
+                if os.path.isfile(os.path.expanduser(u'~/.bash_profile')) else u'',
+            u'export TERM="xterm-256color"',
+        )
+        replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings])
+        replacement += quote_newline +u'#export ZSH='
+        cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
 
-        # config powerlevel9k theme
-        cmd += u'sed -e $\'s/^ZSH_THEME=/POWERLEVEL9K_MODE="nerdfont-complete"\\\n'
-        cmd += u'ZSH_THEME=powerlevel9k\\\/powerlevel9k\\\n'
-        cmd += u'POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir dir_writable vcs)\\\n'
-        cmd += u'POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status)\\\n'
-        cmd += u'DEFAULT_USER="{u}"\\\n'.format(u=os.getlogin())
-        cmd += u'POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$\\\'\\\\\\uE0B1\\\'" %F"\\\n'
-        cmd += u'#ZSH_THEME=/\' ~/.zshrc > {tmp} && mv -f {tmp} ~/.zshrc; '.format(tmp=tmp)
+        search = u'^ZSH_THEME='
+        settings = (
+            u'POWERLEVEL9K_MODE="nerdfont-complete"',
+            u'ZSH_THEME=powerlevel9k/powerlevel9k',
+            u'POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir dir_writable vcs)',
+            u'POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status)',
+            u'DEFAULT_USER="{u}"'.format(u=os.getlogin()),
+            #POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$'\uE0B1'" %F"
+            u'POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$\\\'\\\\\\\\uE0B1\\\'" %F"'
+        )
+        replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings]) 
+        replacement += quote_newline + u'#ZSH_THEME='
+        cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
 
-        # config plugins
-        cmd += u'sed -e $\'s/^plugins=(/plugins=(\\\n  zsh-syntax-highlighting\\\n  '
-        cmd += u'zsh-autosuggestions\\\n  OSX\\\n  Z\\\n  sublime/\' ~/.zshrc'
-        cmd += u' > {tmp} && mv -f {tmp} ~/.zshrc && source ~/.zshrc;'.format(tmp=tmp)
-
-    cmd += u'env zsh -l'
+        search = u'^plugins=('
+        ext_plugins = (
+            u'  zsh-syntax-highlighting',
+            u'  zsh-autosuggestions',
+            u'  OSX',
+            u'  Z',
+            u'  sublime'
+        )
+        replacement = u'plugins=({nl}{pl}'.format(nl=quote_newline, pl=quote_newline.join(ext_plugins))
+        import datetime
+        cur_time = datetime.datetime.today().strftime('%Y%m%d-%H%M%S')
+        tmpfile = u'~/.zshrc-{t}'.format(t=cur_time)
+        cmd += u' | sed -e $\'s/{s}/{r}/\' > {f}'.format(s=search, r=replacement, f=tmpfile)
+        cmd += u' && mv -f $HOME/.zshrc ~/.zshrc-orig-{t}'.format(t=cur_time)
+        cmd += u' && mv -f {tmpfile} ~/.zshrc'.format(tmpfile=tmpfile)
+        cmd += u' && env zsh -l && source ~/.zshrc'
+    else:
+        cmd += u'env zsh -l'
     if exec_shell(cmd) != 0:
         print(red_msg(u'config zsh Failed'))
     else:
         print(green_msg(u'config zsh OK'))
 
 
-def install_brews(brews):
-    for cfg in brews:
-        if u'tap' in cfg:
-            if exec_shell(u'brew tap {0}'.format(cfg[u'tap'])) != 0:
-                continue
-        if u'cask_id' in cfg:
-            cask_list = cfg[u'cask_id']
-            if isinstance(cask_list, str) or isinstance(cask_list, unicode):
-                cask_list = [cask_list]
-            exec_shell(u'brew cask install {0}'.format(u' '.join(cask_list)))
-        if u'brew_id' in cfg:
-            brew_list = cfg[u'brew_id']
-            if isinstance(brew_list, str) or isinstance(brew_list, unicode):
-                brew_list = [brew_list]
-            exec_shell(u'brew install {0}'.format(u' '.join(brew_list)))
-
-
+#########################################################################
 def backup(dest_dir):
     cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
     configs = load_config(cfgfile)
@@ -306,8 +304,8 @@ def backup(dest_dir):
     if u'files' in configs:
         backup_files(configs[u'files'], os.path.join(dest_dir, u'files'))
 
-    if u'apps' in configs:
-        backup_apps(configs[u'apps'], os.path.join(dest_dir, u'apps'))
+    if u'defaults' in configs:
+        backup_defaults(configs[u'defaults'], os.path.join(dest_dir, u'plists'))
 
 
 def restore(bakup_dir):
@@ -322,9 +320,8 @@ def restore(bakup_dir):
     if u'files' in configs:
         restore_files(configs[u'files'], os.path.join(bakup_dir, u'files'))
 
-    if u'apps' in configs:
-        restore_apps(configs[u'apps'], os.path.join(bakup_dir, u'apps'), \
-            brew_installed=brew_installed)
+    if u'defaults' in configs:
+        restore_defaults(configs[u'defaults'], os.path.join(bakup_dir, u'plists'))
 
     if u'brews' in configs and brew_installed:
         install_brews(configs[u'brews'])
@@ -340,6 +337,9 @@ def init_os():
 
     if u'osx_config' in configs:
         sys_optimize(configs[u'osx_config'])
+    
+    if u'brews' in configs and brew_installed:
+        install_brews(configs[u'brews'])
 
     config_zsh(init=True)
 

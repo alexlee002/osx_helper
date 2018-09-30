@@ -1,130 +1,44 @@
 {
 	"files": [
-	    "~/.zsh_history",
-	    "~/.zshrc", 
+		// files to be backup & restore
+		"~/.zsh_history",
+		"~/.zshrc", 
 
-	    "~/.bash_profile",
+		"~/.bash_profile",
 
-	    "~/.vim",
-	    "~/.viminfo",
-	    "~/.vimrc",
+		"~/.vim",
+		"~/.viminfo",
+		"~/.vimrc",
 
-	    "~/.ssh",
-	    "~/.sqliterc"
-	    // "~/.cocoapods"
+		"~/.ssh",
+		"~/.sqliterc",
+		// "~/.cocoapods"
+
+		// apps data
+		"~/Library/Application Support/StarUML", 
+		"~/Library/Application Support/Sublime Text 3",
+		"~/Library/Containers/net.shinyfrog.bear",
+		"~/Library/Application Support/SourceTree",
+		// xcode
+		"~/Library/Developer/Xcode/Archives",
+		"~/Library/Developer/Xcode/Templates",
+		"~/Library/Developer/Xcode/UserData",
+		// dictionaries
+		"~/Library/Dictionaries",
+
+		"/usr/local/bin/bdpac"
 	],
 
-	"apps": {
-		"StarUML": { 
-	        "paths": "~/Library/Application Support/StarUML", 
-	        "brew": {"cask_id": "staruml"}
-	    },
-
-	    "Sublime Text": {
-	        "paths": "~/Library/Application Support/Sublime Text 3",
-	        "brew": {"cask_id": "sublime-text"}
-	    },
-
-	    "bear": { 
-	    	"paths": "~/Library/Containers/net.shinyfrog.bear",
-	    	"brew": {"enable": false}
-	    },
-
-	    "SourceTree": { 
-	    	"paths": "~/Library/Application Support/SourceTree",
-	    	"brew": {"cask_id": "sourcetree"}
-	    },
-
-	    "QQ": {
-	    	"brew": {"cask_id": "qq"}
-	    },
-
-	    "wechat": {
-	    	"brew": {"cask_id": "wechat"}
-	    },
-
-	    "百度Hi": {
-	    	"brew": {"cask_id": "baiduhi"}
-	    },
-
-	    // "BaiduInput": {
-	    // 	"brew": {"cask_id": "baiduinput"},
-	    // 	"locate": "/Library/Input Methods/BaiduIM.app"
-	    // },
-
-	    "The Unarchiver": {
-	    	"brew": {"cask_id": "the-unarchiver"}
-	    },
-
-	    "Google Chrome": {
-	    	"brew": {"cask_id": "google-chrome"}
-	    },
-
-	    "Xcode": {
-	    	"paths": [
-	    		"~/Library/Developer/Xcode/Archives",
-	    		"~/Library/Developer/Xcode/Templates",
-	    		"~/Library/Developer/Xcode/UserData"
-	    	],
-	    	"brew": {"enable": false}
-	    },
-
-	    "Dictionary": {
-	    	"paths": "~/Library/Dictionaries",
-	    	"dft_domains": [
-	    		"com.apple.Dictionary",
-	    		"com.apple.DictionaryServices"
-	    	],
-	    	"brew": {"enable": false}
-	    },
-
-	    "Terminal": {
-	    	"dft_domains": "com.apple.Terminal",
-	    	"brew": {"enable": false}
-	    }
-	},
-
-	"osx_config": [
-		{
-			// enable tap to click
-			"host": "-currentHost",
-			"domain": "NSGlobalDomain",
-			"values":"com.apple.mouse.tapBehavior -int 1"
-		},
-		{
-			// enable tap to click
-			"domain":"com.apple.AppleMultitouchTrackpad",
-			"values": "Clicking -int 1"
-		},
-		{
-			// show battery percentage.
-			"domain": "com.apple.menuextra.battery",
-			"values": "ShowPercent -string \"YES\""
-		}, 
-		{
-			// show extensions in finder
-			"domain": "NSGlobalDomain",
-			"values": "AppleShowAllExtensions -bool true"
-		},
-		{
-			"domain": "com.apple.finder",
-			"values": [
-				"ShowStatusBar -bool true",
-				"ShowPathbar -bool true",
-				"_FXSortFoldersFirst -bool true",
-				// search current path
-				"FXDefaultSearchScope -string \"SCcf\"",
-				// Disable the warning when changing a file extension
-				"FXEnableExtensionChangeWarning -bool false",
-				// allow text selection in Quick Look
-				"QLEnableTextSelection -bool true"
-			]
-		}
+	"defaults":[
+		// defaults domains to backup & restore
+		"com.apple.Terminal"
 	],
 
 	"brews": [
 		{
-			"cask_id":[
+			// "tap": "caskroom/fonts"
+			// quick-lock plugins
+			"cask_ids":[
 				"qlcolorcode", 
 				"qlstephen", 
 				"qlmarkdown", 
@@ -133,16 +47,68 @@
 				"webpquicklook", 
 				"suspicious-package", 
 				"quicklookase", 
-				"qlvideo"]
+				"qlvideo"
+			]
+		},
+		{
+			"cask_ids":[
+				"staruml",
+				"sublime-text",
+				"sourcetree",
+				"qq",
+				"wechat",
+				"baiduhi",
+				"the-unarchiver",
+				"google-chrome"
+			],
+
+			"brew_ids": [
+				"trash"
+			]
 		}
-		//{
-			// "tap": "caskroom/fonts",
-			// "cask_id": [
-			// 	"font-roboto-mono", 
-			// 	"font-source-code-pro",
-			// 	"font-robotomono-nerd-font"
-			// ]
-		//}
-	]
+	],
+
+	"osx_config": [
+		// disable Force Click and haptic feedback
+		"defaults write com.apple.AppleMultitouchTrackpad ActuateDetents -int 0",
+		// enable tap to click
+		"defaults write com.apple.AppleMultitouchTrackpad Clicking -int 1",
+		"defaults write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerTapGesture -int 2",
+
+		"defaults write com.apple.Dock showhidden -bool YES",
+		"defaults write com.apple.Dock largesize -int 80",
+		"defaults write com.apple.Dock tilesize -int 36",
+		"defaults write com.apple.Dock magnification -bool true",
+		// hot corners: bottom-right => lock screen(13)
+		"defaults write com.apple.Dock wvous-br-corner -int 13",
+		"defaults write com.apple.Dock wvous-br-modifier -int 0",
+
+		// show battery percentage.
+		"defaults write com.apple.menuextra.battery ShowPercent -string \"YES\"",
 		
+		// show extensions in finder
+		"defaults write NSGlobalDomain AppleShowAllExtensions -bool true",
+		// //Enable full keyboard access for all controls
+		"defaults write NSGlobalDomain AppleKeyboardUIMode -int 3",
+
+
+		"defaults write com.apple.finder ShowStatusBar -bool true",
+		"defaults write com.apple.finder ShowPathbar -bool true",
+		"defaults write com.apple.finder _FXSortFoldersFirst -bool true",
+		// search current path
+		"defaults write com.apple.finder FXDefaultSearchScope -string \"SCcf\"",
+		// Disable the warning when changing a file extension
+		"defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false",
+		// open ${HOME} when open new window
+		"defaults write com.apple.finder NewWindowTarget -string \"PfHm\"",
+		"defaults write com.apple.finder NewWindowTargetPath -string \"file://${HOME}/\"",
+
+		//hide siri in menu bar
+		"defaults write com.apple.Siri StatusMenuVisible -bool false",
+		"defaults write com.apple.Siri VoiceTriggerUserEnabled -bool false",
+
+		// restart apps
+		"killall Finder",
+		"killall Dock"
+	]	
 }
