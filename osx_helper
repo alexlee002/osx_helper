@@ -147,7 +147,13 @@ def restore_files(files, bakup_dir):
         if os.path.exists(bakup_f):
             print(u'restoring {0} from {1} ... '.format(p, bakup_f), end=u'', flush=True)
             try:
-                copy(bakup_f, os.path.expanduser(p), force=False)
+                restore_path = os.path.abspath(os.path.expanduser(p))
+                if os.path.isdir(restore_path):
+                    # restore destpath is exist and isdir
+                    for sf in os.listdir(bakup_f):
+                        copy(os.path.join(bakup_f, sf), os.path.join(restore_path, sf))
+                else:
+                    copy(bakup_f, restore_path, force=False)
                 print(green_msg(u'OK'))
             except OSError as e:
                 print(red_msg(u'Failed'))
@@ -224,6 +230,9 @@ def config_zsh(init=False):
     Args:
         init:   True if newly install, False if restore from backup files
     """
+
+    has_zshrc = os.path.isfile(os.path.expanduser(u'~/.zshrc'))
+
     cmd = u'sh -c "$(curl -fsSL '
     cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh '
     cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
@@ -243,7 +252,7 @@ def config_zsh(init=False):
     cmd += u'git clone git://github.com/zsh-users/zsh-autosuggestions '
     cmd += u'~/.oh-my-zsh/custom/plugins/zsh-autosuggestions;'
 
-    if init:
+    if not has_zshrc:
         cmd = u'cat ~/.zshrc'
         quote_newline = u'\\\\\\n'
 
@@ -289,7 +298,7 @@ def config_zsh(init=False):
         cmd += u' && mv -f {tmpfile} ~/.zshrc'.format(tmpfile=tmpfile)
         cmd += u' && env zsh -l && source ~/.zshrc'
     else:
-        cmd += u'env zsh -l'
+        cmd += u'env zsh -l && source ~/.zshrc'
     if exec_shell(cmd) != 0:
         print(red_msg(u'config zsh Failed'))
     else:
