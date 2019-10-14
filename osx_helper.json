@@ -12,19 +12,32 @@
 
 		"~/.ssh",
 		"~/.sqliterc",
-		// "~/.cocoapods"
+		// "~/.cocoapods",
+
+		"~/.gitconfig",
 
 		// apps data
 		"~/Library/Application Support/StarUML", 
-		"~/Library/Application Support/Sublime Text 3",
-		"~/Library/Containers/net.shinyfrog.bear",
+		//"~/Library/Application Support/Sublime Text 3",
 		"~/Library/Application Support/SourceTree",
+		"~/Library/Application Support/abnerworks.Typora",
+		"~/Library/Application Support/typora-user-images",
+
+		"~/Library/Containers/net.shinyfrog.bear",
+		"~/Library/Containers/com.tencent.qq",
+		"~/Library/Containers/com.tencent.xinWeChat",
+		"~/Library/Containers/com.tencent.xinWeChat.WeChatMacShare",
+
 		// xcode
 		"~/Library/Developer/Xcode/Archives",
 		"~/Library/Developer/Xcode/Templates",
 		"~/Library/Developer/Xcode/UserData",
 		// dictionaries
 		"~/Library/Dictionaries",
+
+		// apps: Regexrx
+		"/Applications/RegExRX.app",
+		"~/Library/Application Support/RegExRX",
 
 		"/usr/local/bin/bdpac"
 	],
@@ -36,37 +49,62 @@
 
 	"brews": [
 		{
-			// "tap": "caskroom/fonts"
+			"brew_ids": [
+				"trash",
+				"mas",
+				"coreutils",
+				"tree"
+			]
+		},
+		{
 			// quick-lock plugins
 			"cask_ids":[
 				"qlcolorcode", 
 				"qlstephen", 
 				"qlmarkdown", 
 				"quicklook-json", 
-				"qlimagesize", 
+				// "qlimagesize", 
 				"webpquicklook", 
 				"suspicious-package", 
 				"quicklookase", 
-				"qlvideo"
+				"qlvideo",
+				//"BetterZipQL",
+				// ipa
+				"provisionql", 
+				// ios car file
+				//"QLCARFiles", 
+				"stringsfile"
 			]
 		},
 		{
 			"cask_ids":[
-				"staruml",
 				"sublime-text",
 				"sourcetree",
-				"qq",
-				"wechat",
 				"baiduhi",
-				"the-unarchiver",
-				"google-chrome"
-			],
-
-			"brew_ids": [
-				"trash"
+				"baiduinput",
+				"google-chrome",
+				"typora"
+				//"StarUML"
+			]
+		},
+		{
+			"tap": "homebrew/cask-fonts",
+			"cask_ids":[
+				"font-meslo-nerd-font"
 			]
 		}
+
 	],
+
+	"mac_store_apps": {
+		//"Xcode": "497799835", 
+		"Bear": "1091189122",
+		"NeteaseMusic": "944848654",
+		"iHex": "909566003",
+		"The Unarchiver": "425424353",
+		"QQ": "451108668",
+		"WeChat": "836500024"
+	},
 
 	"osx_config": [
 		// disable Force Click and haptic feedback

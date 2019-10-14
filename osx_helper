@@ -36,32 +36,47 @@ def yellow_msg(msg):
 def red_msg(msg):
     return ('\033[1;31m{0}\033[0m'.format(msg))
 
+########################################################
 
-def copy(src, dest, force=True):
+def merge_dir(root_src_dir, root_dst_dir):
+    for src_dir, dirs, files in os.walk(root_src_dir):
+        dst_dir = src_dir.replace(root_src_dir, root_dst_dir, 1)
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+        for f in files:
+            src_file = os.path.join(src_dir, f)
+            dst_file = os.path.join(dst_dir, f)
+            if os.path.exists(dst_file):
+                os.remove(dst_file)
+            shutil.copy(src_file, dst_dir, follow_symlinks=False)
+
+
+def fs_copy(src, dest, backup=True, merge=False):
     import shutil, errno, datetime
 
     assert src != dest
 
+    subfix = u'-bakup-{t}'.format(t=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     if os.path.isdir(dest):
-        if force:
-            shutil.rmtree(dest)
-        else:
-            subfix = u'-{t}'.format(t=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+        if backup:
             os.rename(dest, dest+subfix)
+        elif not merge:
+            shutil.rmtree(dest)
+
     elif os.path.exists(dest):
-        if force:
-            os.remove(dest)
-        else:
-            subfix = u'-{t}'.format(t=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+        if backup:
             name, ext = os.path.splitext(dest)
             os.rename(dest, u'{n}{s}{e}'.format(n=name, s=subfix, e=ext))
+        elif not merge:
+            os.remove(dest)
 
     mkdirs(os.path.dirname(dest))
 
     if os.path.isdir(src):
-        # shutil.copytree(src, dest, symlinks=True, \
-        #     ignore=lambda p,items:[x for x in items if os.path.islink(os.path.join(p, x))])
-        shutil.copytree(src, dest, symlinks=True)
+        if merge:
+            merge_dir(src, dest)
+        else:
+            shutil.copytree(src, dest, symlinks=True)
     elif os.path.isfile(src):
         shutil.copy(src, dest)
 
@@ -127,7 +142,7 @@ def backup_files(files, dest_dir):
         if os.path.exists(srcpath):
             print(u'backing up {0} ... '.format(p), end=u'', flush=True)
             try:
-                copy(srcpath, destpath)
+                fs_copy(srcpath, destpath)
                 print(green_msg(u'OK'))
             except OSError as e:
                 print(red_msg(u'Failed'))
@@ -151,9 +166,9 @@ def restore_files(files, bakup_dir):
                 if os.path.isdir(restore_path):
                     # restore destpath is exist and isdir
                     for sf in os.listdir(bakup_f):
-                        copy(os.path.join(bakup_f, sf), os.path.join(restore_path, sf))
+                        fs_copy(os.path.join(bakup_f, sf), os.path.join(restore_path, sf))
                 else:
-                    copy(bakup_f, restore_path, force=False)
+                    fs_copy(bakup_f, restore_path, backup=True)
                 print(green_msg(u'OK'))
             except OSError as e:
                 print(red_msg(u'Failed'))
@@ -196,10 +211,17 @@ def install_brews(brews):
                 continue
         if u'cask_ids' in cfg:
             cask_list = cfg[u'cask_ids']
-            exec_shell(u'brew cask install {0}'.format(u' '.join(cask_list)))
+            for cask_app in cask_list:
+                cmd = u'brew cask install {0}'.format(cask_app)
+                if exec_shell(cmd) != 0:
+                    print(red_msg(u'ERROR: {0}'.format(cmd)))
+
         if u'brew_ids' in cfg:
             brew_list = cfg[u'brew_ids']
-            exec_shell(u'brew install {0}'.format(u' '.join(brew_list)))
+            for brew_app in brew_list:
+                cmd = u'brew install {0}'.format(brew_app)
+                if exec_shell(cmd) != 0:
+                    print(red_msg(u'ERROR: {0}'.format(cmd)))
 
 
 def sys_optimize(configs):
@@ -220,89 +242,164 @@ def install_homebrew():
     return True
 
 
-def config_zsh(init=False):
-    """
-    configure zsh:
-        install oh-my-zsh
-    oh-my-zsh theme: powerlevel9k
-    oh-my-zsh plugins: 
+def instsll_zsh():
+    exec_shell(u'rm -f ~/.zshrc; rm -rf ~/.oh-my-zsh')
 
-    Args:
-        init:   True if newly install, False if restore from backup files
-    """
+    if not os.path.isdir(os.path.expanduser(u'~/.oh-my-zsh')):
+        print(u'=== installing zsh ...')
+        cmd = u'sh -c "$(curl -fsSL '
+        cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh '
+        # cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
+        if exec_shell(cmd) != 0:
+            print(red_msg(u'ERROR: install oh-my-zsh Failed'))
+            return
+        print(green_msg(u'install oh-my-zsh OK'))
 
-    has_zshrc = os.path.isfile(os.path.expanduser(u'~/.zshrc'))
 
-    cmd = u'sh -c "$(curl -fsSL '
-    cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh '
-    cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
-    print(u'=== Configuring zsh ...')
-    if exec_shell(cmd) != 0:
-        print(red_msg(u'install oh-my-zsh Failed'))
-        return
-    print(green_msg(u'install oh-my-zsh OK'))
-
-    # clone powerlevel9k theme
-    cmd = u'git clone https://github.com/bhilburn/powerlevel9k.git '
-    cmd += u'~/.oh-my-zsh/custom/themes/powerlevel9k; '
+def config_zsh():
+    # clone powerlevel10k theme
+    cmd = u'git clone https://github.com/romkatv/powerlevel10k.git '
+    cmd += u'~/.oh-my-zsh/custom/themes/powerlevel10k; '
     # clone plugin: zsh-syntax-highlighting
     cmd += u'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git '
     cmd += u'~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting;'
     # clone plugin: zsh-autosuggestions
     cmd += u'git clone git://github.com/zsh-users/zsh-autosuggestions '
     cmd += u'~/.oh-my-zsh/custom/plugins/zsh-autosuggestions;'
+    if exec_shell(cmd) != 0:
+        print(red_msg(u'ERROR: install oh-my-zsh plugins failed'))
 
-    if not has_zshrc:
-        cmd = u'cat ~/.zshrc'
-        quote_newline = u'\\\\\\n'
+    cmd = u'cat ~/.zshrc'
+    quote_newline = u'\\\\\\n'
 
-        search = u'^export ZSH='
-        settings = (
-            u'export ZSH=$HOME/.oh-my-zsh',
-            u'source $HOME/.bash_profile' \
-                if os.path.isfile(os.path.expanduser(u'~/.bash_profile')) else u'',
-            u'export TERM="xterm-256color"',
-        )
-        replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings])
-        replacement += quote_newline +u'#export ZSH='
-        cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
+    search = u'^export ZSH='
+    settings = (
+        u'export ZSH=$HOME/.oh-my-zsh',
+        u'source $HOME/.bash_profile' \
+            if os.path.isfile(os.path.expanduser(u'~/.bash_profile')) else u'',
+        u'export TERM="xterm-256color"',
+    )
+    replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings])
+    replacement += quote_newline +u'#export ZSH='
+    cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
 
-        search = u'^ZSH_THEME='
-        settings = (
-            u'POWERLEVEL9K_MODE="nerdfont-complete"',
-            u'ZSH_THEME=powerlevel9k/powerlevel9k',
-            u'POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir dir_writable vcs)',
-            u'POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status)',
-            u'DEFAULT_USER="{u}"'.format(u=os.getlogin()),
-            #POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$'\uE0B1'" %F"
-            u'POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$\\\'\\\\\\\\uE0B1\\\'" %F"'
-        )
-        replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings]) 
-        replacement += quote_newline + u'#ZSH_THEME='
-        cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
+    search = u'^ZSH_THEME='
+    settings = (
+        u'POWERLEVEL9K_MODE="nerdfont-complete"',
+        u'ZSH_THEME=powerlevel10k/powerlevel10k',
+        u'POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(context dir dir_writable vcs root_indicator)',
+        u'POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(status background_jobs command_execution_time time)',
+        u'DEFAULT_USER="{u}"'.format(u=os.getlogin()),
+        #POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$'\uE0B1'" %F"
+        u'POWERLEVEL9K_DIR_PATH_SEPARATOR="%F "$\\\'\\\\\\\\uE0B1\\\'" %F"'
+        u'',
+        u'P9KGT_RED=196',
+        u'P9KGT_GREEN=154',
+        u'P9KGT_YELLOW=220',
+        u'P9KGT_BLUE=075',
+        u'P9KGT_TERMINAL_BACKGROUND="clear"',
+        u'',
+        u'P9K_CONTEXT_DEFAULT_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_CONTEXT_ROOT_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_CONTEXT_SUDO_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_CONTEXT_REMOTE_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_CONTEXT_REMOTE_SUDO_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_CONTEXT_DEFAULT_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_CONTEXT_ROOT_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_CONTEXT_SUDO_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_CONTEXT_REMOTE_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_CONTEXT_REMOTE_SUDO_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'',
+        u'P9K_DIR_WRITABLE_FORBIDDEN_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_DIR_WRITABLE_FORBIDDEN_BACKGROUND=$P9KGT_RED',
+        u'   ',
+        u'    # Set \\\'dir\\\' segment colors',
+        u'    # https://github.com/bhilburn/powerlevel9k/blob/next/segments/dir/README.md',
+        u'P9K_DIR_DEFAULT_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_DIR_HOME_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_DIR_HOME_SUBFOLDER_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_DIR_ETC_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_DIR_DEFAULT_BACKGROUND=$P9KGT_BLUE',
+        u'P9K_DIR_HOME_BACKGROUND=$P9KGT_BLUE',
+        u'P9K_DIR_HOME_SUBFOLDER_BACKGROUND=$P9KGT_BLUE',
+        u'P9K_DIR_ETC_BACKGROUND=$P9KGT_BLUE',
+        u'',
+        u'    # Set \\\'vcs\\\' segment colors',
+        u'    # https://github.com/bhilburn/powerlevel9k/blob/next/segments/vcs/README.md',
+        u'P9K_VCS_CLEAN_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_VCS_MODIFIED_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_VCS_CLOBBERED_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_VCS_UNTRACKED_FOREGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_VCS_CLEAN_BACKGROUND=$P9KGT_GREEN',
+        u'P9K_VCS_MODIFIED_BACKGROUND=$P9KGT_YELLOW',
+        u'P9K_VCS_CLOBBERED_BACKGROUND=$P9KGT_RED',
+        u'P9K_VCS_UNTRACKED_BACKGROUND=$P9KGT_GREEN',
+        u'',
+        u'   # Set \\\'status\\\' segment colors',
+        u'    # https://github.com/bhilburn/powerlevel9k/blob/next/segments/status/README.md',
+        u'P9K_STATUS_CROSS=true',
+        u'P9K_STATUS_OK_FOREGROUND=$P9KGT_GREEN',
+        u'P9K_STATUS_ERROR_FOREGROUND=$P9KGT_RED',
+        u'P9K_STATUS_OK_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'P9K_STATUS_ERROR_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'',
+        u'# Set \\\'root_indicator\\\' segment colors',
+        u'# https://github.com/bhilburn/powerlevel9k/blob/next/segments/root_indicator/README.md',
+        u'P9K_ROOT_INDICATOR_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_ROOT_INDICATOR_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'',
+        u'POWERLEVEL9K_TIME_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'POWERLEVEL9K_TIME_FOREGROUND="249"',
+        u'POWERLEVEL9K_TIME_FORMAT="%D{%H:%M}"',
+        u'',
+        u'#POWERLEVEL9K_COMMAND_EXECUTION_TIME_BACKGROUND="245"',
+        u'#POWERLEVEL9K_COMMAND_EXECUTION_TIME_FOREGROUND="clean"',
+        u'',
+        u'P9K_ROOT_INDICATOR_FOREGROUND=$P9KGT_YELLOW',
+        u'P9K_ROOT_INDICATOR_BACKGROUND=$P9KGT_TERMINAL_BACKGROUND',
+        u'',
+        u'POWERLEVEL9K_DIR_PATH_HIGHLIGHT_BOLD=true',
+        u'#POWERLEVEL9K_SHOW_CHANGESET=true',
+        u'#--------------------'
+    )
+    replacement = quote_newline.join([l.replace(u'/', u'\\\/') for l in settings]) 
+    replacement += quote_newline + u'#ZSH_THEME='
+    cmd += u' | sed -e $\'s/{s}/{r}/\''.format(s=search, r=replacement)
 
-        search = u'^plugins=('
-        ext_plugins = (
-            u'  zsh-syntax-highlighting',
-            u'  zsh-autosuggestions',
-            u'  OSX',
-            u'  Z',
-            u'  sublime'
-        )
-        replacement = u'plugins=({nl}{pl}'.format(nl=quote_newline, pl=quote_newline.join(ext_plugins))
-        import datetime
-        cur_time = datetime.datetime.today().strftime('%Y%m%d-%H%M%S')
-        tmpfile = u'~/.zshrc-{t}'.format(t=cur_time)
-        cmd += u' | sed -e $\'s/{s}/{r}/\' > {f}'.format(s=search, r=replacement, f=tmpfile)
-        cmd += u' && mv -f $HOME/.zshrc ~/.zshrc-orig-{t}'.format(t=cur_time)
-        cmd += u' && mv -f {tmpfile} ~/.zshrc'.format(tmpfile=tmpfile)
-        cmd += u' && env zsh -l && source ~/.zshrc'
-    else:
-        cmd += u'env zsh -l && source ~/.zshrc'
+    search = u'^plugins=('
+    ext_plugins = (
+        u'  zsh-syntax-highlighting',
+        u'  zsh-autosuggestions',
+        u'  OSX',
+        u'  Z',
+        u'  extract'
+        u'  history'
+        u'  sublime'
+    )
+    replacement = u'plugins=({nl}{pl}{nl}'.format(nl=quote_newline, pl=quote_newline.join(ext_plugins))
+    import datetime
+    cur_time = datetime.datetime.today().strftime('%Y%m%d-%H%M%S')
+    tmpfile = u'~/.zshrc-{t}'.format(t=cur_time)
+    cmd += u' | sed -e $\'s/{s}/{r}/\' > {f}'.format(s=search, r=replacement, f=tmpfile)
+    cmd += u' && mv -f $HOME/.zshrc ~/.zshrc-orig-{t}'.format(t=cur_time)
+    cmd += u' && mv -f {tmpfile} ~/.zshrc'.format(tmpfile=tmpfile)
+    cmd += u' && exec zsh -l && source ~/.zshrc'
+
     if exec_shell(cmd) != 0:
         print(red_msg(u'config zsh Failed'))
     else:
         print(green_msg(u'config zsh OK'))
+
+
+def install_mac_apps(apps_dict):
+    if exec_shell(u'mas version') != 0:
+        if exec_shell(u'brew install mas') != 0:
+            print(u'ERROR: install mas failed!')
+            return
+
+    for name, aid in apps_dict.items():
+        if exec_shell(u'mas install {0}'.format(aid)) != 0:
+            print(red_msg(u'ERROR: install {0}({1}) failed!'.format(name, aid)))
 
 
 #########################################################################
@@ -335,7 +432,10 @@ def restore(bakup_dir):
     if u'brews' in configs and brew_installed:
         install_brews(configs[u'brews'])
 
-    config_zsh()
+    if u'mac_store_apps' in configs:
+        install_mac_apps(configs[u'mac_store_apps'])
+
+    instsll_zsh()
 
 
 def init_os():
@@ -350,15 +450,22 @@ def init_os():
     if u'brews' in configs and brew_installed:
         install_brews(configs[u'brews'])
 
-    config_zsh(init=True)
+    instsll_zsh()
 
 ###################################################
 def usage():
 
     usage = """
-    backup path     backup profiles, files, apps and defaults to path
-    restore path    restore profiles, files, apps and defaults from path
-    init            init a new os
+    backup path             backup profiles, files, apps and defaults to `path`
+    restore path            restore profiles, files, apps and defaults from backup at `path`
+    restore_files path      restore files from backup at `path`
+    restore_defaults path   restore defaults from backup at `path`
+    install_zsh             reinstall zsh
+    config_zsh              configurate zsh
+    os_config               configurate OS environment
+    install_mas_apps        install apps from Mac App Store
+    install_brews           install apps from homebrew
+
 
     the action of backup/restore is configured via osx_helper.json
     """
@@ -390,9 +497,57 @@ def main():
         else:
             print(red_msg(u'{0} not a backup dir.'.format(path)))
             sys.exit(-1)
-    elif action == u'init':
-        init_os()
-        print(green_msg(u'=== init DONE! ==='))
+
+    elif action == u'install_zsh':
+        install_zsh()
+
+    elif action == u'config_zsh':
+        config_zsh()
+
+    elif action == u'install_mas_apps':
+        cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+        configs = load_config(cfgfile)
+        brew_installed = install_homebrew()
+        if u'mac_store_apps' in configs and brew_installed:
+            install_mac_apps(configs[u'mac_store_apps'])
+
+    elif action == u'os_config':
+        cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+        configs = load_config(cfgfile)
+        if u'osx_config' in configs:
+            sys_optimize(configs[u'osx_config'])
+
+    elif action == u'install_brews':
+        cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+        configs = load_config(cfgfile)
+        brew_installed = install_homebrew()
+        if u'brews' in configs and brew_installed:
+            install_brews(configs[u'brews'])
+
+    elif action == u'restore_files':
+        __checkArgs(3)
+        bakup_dir = os.path.expanduser(sys.argv[2])
+        if not os.path.isdir(backup_dir):
+            print(red_msg(u'{0} not a backup dir.'.format(backup_dir)))
+            sys.exit(-1)
+
+        cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+        configs = load_config(cfgfile)
+        if u'files' in configs:
+            restore_files(configs[u'files'], os.path.join(bakup_dir, u'files'))
+
+    elif action == u'restore_defaults':
+        __checkArgs(3)
+        bakup_dir = os.path.expanduser(sys.argv[2])
+        if not os.path.isdir(backup_dir):
+            print(red_msg(u'{0} not a backup dir.'.format(backup_dir)))
+            sys.exit(-1)
+
+        cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
+        configs = load_config(cfgfile)
+        if u'defaults' in configs:
+            restore_defaults(configs[u'defaults'], os.path.join(bakup_dir, u'plists'))
+
     else:
         usage()
         sys.exit(-1)
