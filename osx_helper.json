@@ -2,7 +2,8 @@
 	"files": [
 		// files to be backup & restore
 		"~/.zsh_history",
-		"~/.zshrc", 
+		"~/.zshrc",
+		"~/.p10k.zsh", 
 
 		"~/.bash_profile",
 
@@ -26,7 +27,7 @@
 		"~/Library/Group Containers/9K33E3U3T4.net.shinyfrog.bear",
 		"~/Library/Group Containers/UBF8T346G9.Office/User Content.localized",
 		
-		"~/Library/Containers/com.tencent.qq",
+		//"~/Library/Containers/com.tencent.qq",
 		"~/Library/Containers/com.tencent.xinWeChat",
 		"~/Library/Containers/com.tencent.xinWeChat.WeChatMacShare",
 
@@ -38,8 +39,8 @@
 		"~/Library/Dictionaries",
 
 		// apps: Regexrx
-		"/Applications/RegExRX.app",
-		"~/Library/Application Support/RegExRX",
+		//"/Applications/RegExRX.app",
+		//"~/Library/Application Support/RegExRX",
 
 		"/usr/local/bin/bdpac"
 	],
@@ -82,10 +83,11 @@
 			"cask_ids":[
 				"sublime-text",
 				"sourcetree",
-				"baiduhi",
+				"infoflow",
 				"baiduinput",
 				"google-chrome",
-				"typora"
+				"typora",
+				"maczip"
 				//"StarUML"
 			]
 		},
@@ -103,35 +105,42 @@
 		"Bear": "1091189122",
 		//"NeteaseMusic": "944848654",
 		"iHex": "909566003",
-		"The Unarchiver": "425424353",
+		// "The Unarchiver": "425424353",
 		"QQ": "451108668",
 		"WeChat": "836500024"
 	},
 
 	"osx_config": [
+		//=== Global ===
+		// //Enable full keyboard access for all controls
+		"defaults write NSGlobalDomain AppleKeyboardUIMode -int 3",
+		// show battery percentage.
+		"defaults write com.apple.menuextra.battery ShowPercent -string \"YES\"",
+
+		//=== TouchPad ===
 		// disable Force Click and haptic feedback
 		"defaults write com.apple.AppleMultitouchTrackpad ActuateDetents -int 0",
 		// enable tap to click
 		"defaults write com.apple.AppleMultitouchTrackpad Clicking -int 1",
 		"defaults write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerTapGesture -int 2",
 
+		//=== Dock ===
 		"defaults write com.apple.Dock showhidden -bool YES",
 		"defaults write com.apple.Dock largesize -int 80",
 		"defaults write com.apple.Dock tilesize -int 36",
 		"defaults write com.apple.Dock magnification -bool true",
+		"defaults write com.apple.dock minimize-to-application -bool true",
 		// hot corners: bottom-right => lock screen(13)
 		"defaults write com.apple.Dock wvous-br-corner -int 13",
 		"defaults write com.apple.Dock wvous-br-modifier -int 0",
+		// Bottom left Corner => Desktop(4)
+		"defaults write com.apple.dock wvous-bl-corner -int 4",
+		"defaults write com.apple.dock wvous-bl-modifier -int 0",
 
-		// show battery percentage.
-		"defaults write com.apple.menuextra.battery ShowPercent -string \"YES\"",
 		
+		// === Finder ===
 		// show extensions in finder
 		"defaults write NSGlobalDomain AppleShowAllExtensions -bool true",
-		// //Enable full keyboard access for all controls
-		"defaults write NSGlobalDomain AppleKeyboardUIMode -int 3",
-
-
 		"defaults write com.apple.finder ShowStatusBar -bool true",
 		"defaults write com.apple.finder ShowPathbar -bool true",
 		"defaults write com.apple.finder _FXSortFoldersFirst -bool true",
@@ -143,9 +152,18 @@
 		"defaults write com.apple.finder NewWindowTarget -string \"PfHm\"",
 		"defaults write com.apple.finder NewWindowTargetPath -string \"file://${HOME}/\"",
 
+		// === Siri ===
 		//hide siri in menu bar
 		"defaults write com.apple.Siri StatusMenuVisible -bool false",
 		"defaults write com.apple.Siri VoiceTriggerUserEnabled -bool false",
+
+		// === Safari ===
+		//enable "develop" in Safari
+		"defaults write com.apple.safari IncludeDebugMenu -bool YES",
+		"killall Safari",	
+
+		//=== Firewall ===
+		"sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on",	
 
 		// restart apps
 		"killall Finder",

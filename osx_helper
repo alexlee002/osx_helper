@@ -212,7 +212,7 @@ def install_brews(brews):
         if u'cask_ids' in cfg:
             cask_list = cfg[u'cask_ids']
             for cask_app in cask_list:
-                cmd = u'brew cask install {0}'.format(cask_app)
+                cmd = u'brew install --cask  {0}'.format(cask_app)
                 if exec_shell(cmd) != 0:
                     print(red_msg(u'ERROR: {0}'.format(cmd)))
 
@@ -234,7 +234,7 @@ def install_homebrew():
         print(u'=== Installing homebrew ...')
         cmd = u'/usr/bin/ruby -e\
          "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"'
-        if exec_shell(cmd) == 0:
+        if exec_shell(cmd) == 0 and exec_shell(u'brew --version') == 0:
             print(green_msg(u'Install homebrew OK'))
         else:
             print(red_msg(u'Install homebrew Failed'))
@@ -242,14 +242,15 @@ def install_homebrew():
     return True
 
 
-def instsll_zsh():
+def install_zsh():
     exec_shell(u'rm -f ~/.zshrc; rm -rf ~/.oh-my-zsh')
 
     if not os.path.isdir(os.path.expanduser(u'~/.oh-my-zsh')):
         print(u'=== installing zsh ...')
-        cmd = u'sh -c "$(curl -fsSL '
-        cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh '
-        # cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
+        #cmd = u'sh -c "$(curl -fsSL '
+        #cmd += u'https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"'
+        cmd = u'sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+	# cmd += u'| sed -e $\'s/env zsh -l/#env zsh -l/\')"'
         if exec_shell(cmd) != 0:
             print(red_msg(u'ERROR: install oh-my-zsh Failed'))
             return
@@ -526,7 +527,7 @@ def main():
 
     elif action == u'restore_files':
         __checkArgs(3)
-        bakup_dir = os.path.expanduser(sys.argv[2])
+        backup_dir = os.path.expanduser(sys.argv[2])
         if not os.path.isdir(backup_dir):
             print(red_msg(u'{0} not a backup dir.'.format(backup_dir)))
             sys.exit(-1)
@@ -534,11 +535,11 @@ def main():
         cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
         configs = load_config(cfgfile)
         if u'files' in configs:
-            restore_files(configs[u'files'], os.path.join(bakup_dir, u'files'))
+            restore_files(configs[u'files'], os.path.join(backup_dir, u'files'))
 
     elif action == u'restore_defaults':
         __checkArgs(3)
-        bakup_dir = os.path.expanduser(sys.argv[2])
+        backup_dir = os.path.expanduser(sys.argv[2])
         if not os.path.isdir(backup_dir):
             print(red_msg(u'{0} not a backup dir.'.format(backup_dir)))
             sys.exit(-1)
@@ -546,7 +547,7 @@ def main():
         cfgfile = os.path.abspath(os.path.join(os.path.dirname(__file__), u'osx_helper.json'))
         configs = load_config(cfgfile)
         if u'defaults' in configs:
-            restore_defaults(configs[u'defaults'], os.path.join(bakup_dir, u'plists'))
+            restore_defaults(configs[u'defaults'], os.path.join(backup_dir, u'plists'))
 
     else:
         usage()
