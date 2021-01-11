@@ -42,7 +42,7 @@
 		//"/Applications/RegExRX.app",
 		//"~/Library/Application Support/RegExRX",
 
-		"/usr/local/bin/bdpac"
+		"/usr/local/bin/paccfg"
 	],
 
 	"defaults":[
