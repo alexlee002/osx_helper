@@ -94,7 +94,7 @@
 		{
 			"tap": "homebrew/cask-fonts",
 			"cask_ids":[
-				"font-meslo-nerd-font"
+				"font-hack-nerd-font"
 			]
 		}
 
